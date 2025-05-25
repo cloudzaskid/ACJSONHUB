@@ -1,4 +1,4 @@
-<!DOCTYPE html> 3
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -12,7 +12,6 @@
       margin: 0;
       padding: 0;
     }
-
     header {
       background: #222;
       padding: 20px;
@@ -21,7 +20,6 @@
       font-weight: bold;
       border-bottom: 2px solid #333;
     }
-
     .drop-area {
       border: 2px dashed #666;
       padding: 40px;
@@ -31,12 +29,10 @@
       background-color: #1c1c1c;
       cursor: pointer;
     }
-
     .drop-area.dragover {
       background-color: #2c2c2c;
       border-color: #aaa;
     }
-
     .tags, .filter {
       display: flex;
       justify-content: center;
@@ -44,19 +40,13 @@
       gap: 10px;
       margin: 10px 0;
     }
-
     .tags label, .filter label {
       background-color: #333;
       padding: 5px 10px;
       border-radius: 5px;
       cursor: pointer;
     }
-
-    .tags input[type="checkbox"],
-    .filter input[type="checkbox"] {
-      margin-right: 5px;
-    }
-
+    .tags input, .filter input { margin-right: 5px; }
     #json-content {
       white-space: pre-wrap;
       background-color: #222;
@@ -66,13 +56,11 @@
       overflow-x: auto;
       max-height: 300px;
     }
-
     .upload-list {
       margin: 20px;
       max-height: 300px;
       overflow-y: auto;
     }
-
     .upload-item {
       background: #222;
       border: 1px solid #333;
@@ -80,10 +68,9 @@
       margin-bottom: 10px;
       border-radius: 8px;
     }
-
     .btn {
-      display: block;
-      margin: 10px auto;
+      display: inline-block;
+      margin: 10px;
       padding: 10px 20px;
       background-color: #444;
       color: white;
@@ -91,7 +78,6 @@
       border-radius: 5px;
       cursor: pointer;
     }
-
     footer {
       text-align: center;
       padding: 15px;
@@ -99,28 +85,32 @@
       background: #111;
       border-top: 2px solid #333;
     }
-
     .rainbow {
       background: linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
+    /* Hide the YouTube player iframe by default */
+    #player {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <header>AC JSON HUB - CLOUDZ / SOULLESS</header>
+  <header>
+    AC JSON HUB - CLOUDZ / SOULLESS
+    <!-- Music toggle -->
+    <button id="music-btn" class="btn">Enable Music</button>
+  </header>
 
   <div class="drop-area" id="drop-area">
     Drag & Drop your JSON file here or click to upload
     <input type="file" id="fileElem" accept=".json" style="display:none"/>
   </div>
 
-  <div class="tags" id="tag-container">
-    <!-- Checkboxes for upload tagging -->
-  </div>
+  <div class="tags" id="tag-container"></div>
 
   <div class="filter">
-    <!-- Filter checkboxes for viewing -->
     <label><input type="checkbox" class="filter-tag" value="444">444</label>
     <label><input type="checkbox" class="filter-tag" value="XMOD">XMOD</label>
     <label><input type="checkbox" class="filter-tag" value="FISHY">FISHY</label>
@@ -135,10 +125,17 @@
   <div id="json-content"></div>
   <div class="upload-list" id="upload-list"></div>
 
+  <!-- Hidden YouTube player -->
+  <div id="player"></div>
+
   <footer><span class="rainbow">MADE BY CLOUDZ / SOULLESS</span></footer>
 
+  <!-- YouTube IFrame API -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
   <script>
-    const tags = ["444", "XMOD", "FISHY", "OTHER", "MONEY", "GIVEAWAY", "CRASH", "Stash", "Loadout"];
+    // === JSON Hub Code ===
+    const tags = ["444","XMOD","FISHY","OTHER","MONEY","GIVEAWAY","CRASH","Stash","Loadout"];
     const dropArea = document.getElementById('drop-area');
     const fileElem = document.getElementById('fileElem');
     const tagContainer = document.getElementById('tag-container');
@@ -146,7 +143,7 @@
     const uploadList = document.getElementById('upload-list');
     const filterCheckboxes = document.querySelectorAll('.filter-tag');
 
-    // Create tag checkboxes for uploads
+    // Generate upload tag checkboxes
     tags.forEach(tag => {
       const label = document.createElement('label');
       label.innerHTML = `<input type="checkbox" value="${tag}" class="tag-check">${tag}`;
@@ -154,61 +151,35 @@
     });
 
     dropArea.addEventListener('click', () => fileElem.click());
+    ['dragenter','dragover'].forEach(e => dropArea.addEventListener(e, prevent));
+    ['dragleave','drop'].forEach(e => dropArea.addEventListener(e, prevent));
 
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropArea.addEventListener(eventName, e => {
-        e.preventDefault();
-        dropArea.classList.add('dragover');
-      });
-    });
+    function prevent(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      dropArea.classList.toggle('dragover', e.type==='dragenter' || e.type==='dragover');
+    }
 
-    ['dragleave', 'drop'].forEach(eventName => {
-      dropArea.addEventListener(eventName, e => {
-        e.preventDefault();
-        dropArea.classList.remove('dragover');
-      });
-    });
-
-    dropArea.addEventListener('drop', e => {
-      const file = e.dataTransfer.files[0];
-      handleFile(file);
-    });
-
-    fileElem.addEventListener('change', () => {
-      const file = fileElem.files[0];
-      handleFile(file);
-    });
+    dropArea.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+    fileElem.addEventListener('change', () => handleFile(fileElem.files[0]));
 
     function handleFile(file) {
-      if (!file.name.endsWith('.json')) {
-        alert('Only JSON files are allowed.');
-        return;
-      }
-
+      if (!file.name.endsWith('.json')) return alert('Only JSON files allowed');
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const json = JSON.parse(reader.result);
-          const formatted = JSON.stringify(json, null, 2);
+          const obj = JSON.parse(reader.result);
+          const formatted = JSON.stringify(obj, null,2);
           jsonContent.textContent = formatted;
-
-          const selectedTags = Array.from(document.querySelectorAll('.tag-check:checked')).map(el => el.value);
-          const uploads = JSON.parse(localStorage.getItem('uploads') || '[]');
-
-          const upload = {
-            name: file.name,
-            content: formatted,
-            tags: selectedTags,
-            date: new Date().toISOString()
-          };
-
-          uploads.push(upload);
+          const selected = Array.from(document.querySelectorAll('.tag-check:checked'))
+                            .map(i=>i.value);
+          const uploads = JSON.parse(localStorage.getItem('uploads')||'[]');
+          uploads.push({name:file.name,content:formatted,tags:selected,date:new Date().toISOString()});
           localStorage.setItem('uploads', JSON.stringify(uploads));
           localStorage.setItem('last', formatted);
-
           renderUploads();
         } catch {
-          alert('Invalid JSON file.');
+          alert('Invalid JSON');
         }
       };
       reader.readAsText(file);
@@ -216,43 +187,59 @@
 
     function renderUploads() {
       uploadList.innerHTML = '';
-      const uploads = JSON.parse(localStorage.getItem('uploads') || '[]');
-      const activeFilters = Array.from(filterCheckboxes)
-        .filter(cb => cb.checked)
-        .map(cb => cb.value.toLowerCase());
-
-      const filtered = uploads.filter(upload => {
-        return activeFilters.length === 0 || upload.tags.some(tag => activeFilters.includes(tag.toLowerCase()));
-      }).reverse();
-
-      filtered.forEach(upload => {
-        const div = document.createElement('div');
-        div.className = 'upload-item';
-        div.innerHTML = `
-          <strong>${upload.name}</strong><br/>
-          <small>${new Date(upload.date).toLocaleString()}</small><br/>
-          <strong>Tags:</strong> ${upload.tags.join(', ')}<br/>
-          <button class="btn" onclick="viewJSON(\`${encodeURIComponent(upload.content)}\`)">View</button>
+      const uploads = JSON.parse(localStorage.getItem('uploads')||'[]');
+      const filters = Array.from(filterCheckboxes).filter(cb=>cb.checked).map(cb=>cb.value.toLowerCase());
+      uploads.slice().reverse().forEach(u => {
+        if (filters.length && !u.tags.some(t=>filters.includes(t.toLowerCase()))) return;
+        const d = document.createElement('div');
+        d.className='upload-item';
+        d.innerHTML=`
+          <strong>${u.name}</strong> (<small>${new Date(u.date).toLocaleString()}</small>)<br/>
+          <em>Tags:</em> ${u.tags.join(', ')}<br/>
+          <button class="btn" onclick="viewJSON('${encodeURIComponent(u.content)}')">View</button>
         `;
-        uploadList.appendChild(div);
+        uploadList.appendChild(d);
       });
     }
 
-    function viewJSON(encoded) {
-      const content = decodeURIComponent(encoded);
-      jsonContent.textContent = content;
-      localStorage.setItem('last', content);
+    function viewJSON(enc) {
+      const txt = decodeURIComponent(enc);
+      jsonContent.textContent = txt;
+      localStorage.setItem('last', txt);
     }
 
     window.onload = () => {
       const last = localStorage.getItem('last');
-      if (last) {
-        jsonContent.textContent = last;
-      }
+      if (last) jsonContent.textContent = last;
       renderUploads();
+      filterCheckboxes.forEach(cb=>cb.addEventListener('change',renderUploads));
     };
 
-    filterCheckboxes.forEach(cb => cb.addEventListener('change', renderUploads));
+    // === Music Player Code ===
+    let player, musicOn = false;
+    const musicBtn = document.getElementById('music-btn');
+
+    // Called by YouTube IFrame API once it's loaded
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '0', width: '0',
+        videoId: '4g1GiY2iLFI',               // your video ID
+        playerVars: { 'autoplay': 0, 'loop': 1, 'playlist': '4g1GiY2iLFI' },
+        events: { 'onReady': () => {/* ready */} }
+      });
+    }
+
+    musicBtn.addEventListener('click', () => {
+      if (!player) return;
+      musicOn = !musicOn;
+      if (musicOn) {
+        player.playVideo();
+        musicBtn.textContent = 'Disable Music';
+      } else {
+        player.pauseVideo();
+        musicBtn.textContent = 'Enable Music';
+      }
+    });
   </script>
 </body>
 </html>
