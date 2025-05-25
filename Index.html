@@ -66,9 +66,9 @@
       max-height: 400px;
     }
 
-    #download-btn {
+    .btn {
       display: block;
-      margin: 20px auto;
+      margin: 10px auto;
       padding: 10px 20px;
       background-color: #444;
       color: white;
@@ -108,11 +108,14 @@
     <label><input type="checkbox" value="MONEY" />MONEY</label>
     <label><input type="checkbox" value="GIVEAWAY" />GIVEAWAY</label>
     <label><input type="checkbox" value="CRASH" />CRASH</label>
+    <label><input type="checkbox" value="Stash" />Stash</label>
+    <label><input type="checkbox" value="Loadout" />Loadout</label>
   </div>
 
   <div id="json-content"></div>
 
-  <button id="download-btn" style="display:none">Download JSON</button>
+  <button id="download-btn" class="btn" style="display:none">Download JSON</button>
+  <button id="upload-server-btn" class="btn" style="display:none">Upload to Server</button>
 
   <footer><span class="rainbow">MADE BY CLOUDZ / SOULLESS</span></footer>
 
@@ -121,9 +124,36 @@
     const fileElem = document.getElementById('fileElem');
     const jsonContent = document.getElementById('json-content');
     const downloadBtn = document.getElementById('download-btn');
+    const uploadServerBtn = document.getElementById('upload-server-btn');
+    const tagInputs = document.querySelectorAll('.tags input[type="checkbox"]');
     let currentFile = null;
+    let currentFileName = '';
 
-    const MAX_UPLOAD_MB = 2; // Upload limit
+    const MAX_UPLOAD_MB = 2;
+
+    // Load saved tags and JSON
+    window.addEventListener('load', () => {
+      const savedTags = JSON.parse(localStorage.getItem('selectedTags') || '[]');
+      tagInputs.forEach(tag => {
+        tag.checked = savedTags.includes(tag.value);
+        tag.addEventListener('change', saveTags);
+      });
+
+      const savedJSON = localStorage.getItem('jsonContent');
+      if (savedJSON) {
+        jsonContent.textContent = savedJSON;
+        currentFile = new Blob([savedJSON], { type: 'application/json' });
+        downloadBtn.style.display = 'block';
+        uploadServerBtn.style.display = 'block';
+      }
+    });
+
+    function saveTags() {
+      const selected = Array.from(tagInputs)
+        .filter(tag => tag.checked)
+        .map(tag => tag.value);
+      localStorage.setItem('selectedTags', JSON.stringify(selected));
+    }
 
     dropArea.addEventListener('click', () => fileElem.click());
 
@@ -168,10 +198,14 @@
       reader.onload = () => {
         try {
           const json = JSON.parse(reader.result);
-          jsonContent.textContent = JSON.stringify(json, null, 2);
-          currentFile = new Blob([JSON.stringify(json)], { type: 'application/json' });
+          const formatted = JSON.stringify(json, null, 2);
+          jsonContent.textContent = formatted;
+          currentFile = new Blob([formatted], { type: 'application/json' });
+          currentFileName = file.name;
+          localStorage.setItem('jsonContent', formatted);
           downloadBtn.style.display = 'block';
-        } catch (err) {
+          uploadServerBtn.style.display = 'block';
+        } catch {
           alert('Invalid JSON file.');
         }
       };
@@ -182,10 +216,37 @@
       if (currentFile) {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(currentFile);
-        link.download = 'download.json';
+        link.download = currentFileName || 'download.json';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+      }
+    });
+
+    uploadServerBtn.addEventListener('click', async () => {
+      if (!currentFile) return;
+
+      const tags = Array.from(tagInputs)
+        .filter(tag => tag.checked)
+        .map(tag => tag.value);
+
+      const formData = new FormData();
+      formData.append('jsonFile', currentFile, currentFileName || 'upload.json');
+      formData.append('tags', JSON.stringify(tags));
+
+      try {
+        const res = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (res.ok) {
+          alert('Uploaded to server!');
+        } else {
+          alert('Upload failed.');
+        }
+      } catch (err) {
+        alert('Error uploading to server.');
       }
     });
   </script>
