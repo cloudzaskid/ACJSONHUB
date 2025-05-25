@@ -37,7 +37,7 @@
       border-color: #aaa;
     }
 
-    .tags {
+    .tags, .filter {
       display: flex;
       justify-content: center;
       flex-wrap: wrap;
@@ -45,14 +45,15 @@
       margin: 10px 0;
     }
 
-    .tags label {
+    .tags label, .filter label {
       background-color: #333;
       padding: 5px 10px;
       border-radius: 5px;
       cursor: pointer;
     }
 
-    .tags input[type="checkbox"] {
+    .tags input[type="checkbox"],
+    .filter input[type="checkbox"] {
       margin-right: 5px;
     }
 
@@ -63,7 +64,21 @@
       margin: 20px;
       border-radius: 10px;
       overflow-x: auto;
-      max-height: 400px;
+      max-height: 300px;
+    }
+
+    .upload-list {
+      margin: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .upload-item {
+      background: #222;
+      border: 1px solid #333;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 8px;
     }
 
     .btn {
@@ -100,67 +115,50 @@
     <input type="file" id="fileElem" accept=".json" style="display:none"/>
   </div>
 
-  <div class="tags">
-    <label><input type="checkbox" value="444" />444</label>
-    <label><input type="checkbox" value="XMOD" />XMOD</label>
-    <label><input type="checkbox" value="FISHY" />FISHY</label>
-    <label><input type="checkbox" value="OTHER" />OTHER</label>
-    <label><input type="checkbox" value="MONEY" />MONEY</label>
-    <label><input type="checkbox" value="GIVEAWAY" />GIVEAWAY</label>
-    <label><input type="checkbox" value="CRASH" />CRASH</label>
-    <label><input type="checkbox" value="Stash" />Stash</label>
-    <label><input type="checkbox" value="Loadout" />Loadout</label>
+  <div class="tags" id="tag-container">
+    <!-- Checkboxes will be generated here -->
+  </div>
+
+  <div class="filter">
+    <label><input type="checkbox" class="filter-tag" value="444">444</label>
+    <label><input type="checkbox" class="filter-tag" value="XMOD">XMOD</label>
+    <label><input type="checkbox" class="filter-tag" value="FISHY">FISHY</label>
+    <label><input type="checkbox" class="filter-tag" value="OTHER">OTHER</label>
+    <label><input type="checkbox" class="filter-tag" value="MONEY">MONEY</label>
+    <label><input type="checkbox" class="filter-tag" value="GIVEAWAY">GIVEAWAY</label>
+    <label><input type="checkbox" class="filter-tag" value="CRASH">CRASH</label>
+    <label><input type="checkbox" class="filter-tag" value="Stash">Stash</label>
+    <label><input type="checkbox" class="filter-tag" value="Loadout">Loadout</label>
   </div>
 
   <div id="json-content"></div>
-
-  <button id="download-btn" class="btn" style="display:none">Download JSON</button>
-  <button id="upload-server-btn" class="btn" style="display:none">Upload to Server</button>
+  <div class="upload-list" id="upload-list"></div>
 
   <footer><span class="rainbow">MADE BY CLOUDZ / SOULLESS</span></footer>
 
   <script>
+    const tags = ["444", "XMOD", "FISHY", "OTHER", "MONEY", "GIVEAWAY", "CRASH", "Stash", "Loadout"];
     const dropArea = document.getElementById('drop-area');
     const fileElem = document.getElementById('fileElem');
+    const tagContainer = document.getElementById('tag-container');
     const jsonContent = document.getElementById('json-content');
-    const downloadBtn = document.getElementById('download-btn');
-    const uploadServerBtn = document.getElementById('upload-server-btn');
-    const tagInputs = document.querySelectorAll('.tags input[type="checkbox"]');
-    let currentFile = null;
-    let currentFileName = '';
+    const uploadList = document.getElementById('upload-list');
+    const filterCheckboxes = document.querySelectorAll('.filter-tag');
 
-    const MAX_UPLOAD_MB = 2;
-
-    // Load saved tags and JSON
-    window.addEventListener('load', () => {
-      const savedTags = JSON.parse(localStorage.getItem('selectedTags') || '[]');
-      tagInputs.forEach(tag => {
-        tag.checked = savedTags.includes(tag.value);
-        tag.addEventListener('change', saveTags);
-      });
-
-      const savedJSON = localStorage.getItem('jsonContent');
-      if (savedJSON) {
-        jsonContent.textContent = savedJSON;
-        currentFile = new Blob([savedJSON], { type: 'application/json' });
-        downloadBtn.style.display = 'block';
-        uploadServerBtn.style.display = 'block';
-      }
+    // Create checkboxes for tagging
+    tags.forEach(tag => {
+      const label = document.createElement('label');
+      label.innerHTML = `<input type="checkbox" value="${tag}" class="tag-check">${tag}`;
+      tagContainer.appendChild(label);
     });
 
-    function saveTags() {
-      const selected = Array.from(tagInputs)
-        .filter(tag => tag.checked)
-        .map(tag => tag.value);
-      localStorage.setItem('selectedTags', JSON.stringify(selected));
-    }
-
+    // Allow file selection via click
     dropArea.addEventListener('click', () => fileElem.click());
 
+    // Drag & drop support
     ['dragenter', 'dragover'].forEach(eventName => {
       dropArea.addEventListener(eventName, e => {
         e.preventDefault();
-        e.stopPropagation();
         dropArea.classList.add('dragover');
       });
     });
@@ -168,7 +166,6 @@
     ['dragleave', 'drop'].forEach(eventName => {
       dropArea.addEventListener(eventName, e => {
         e.preventDefault();
-        e.stopPropagation();
         dropArea.classList.remove('dragover');
       });
     });
@@ -183,14 +180,10 @@
       handleFile(file);
     });
 
+    // Handle uploaded JSON file
     function handleFile(file) {
       if (!file.name.endsWith('.json')) {
         alert('Only JSON files are allowed.');
-        return;
-      }
-
-      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
-        alert(`File is too big. Limit is ${MAX_UPLOAD_MB}MB.`);
         return;
       }
 
@@ -200,11 +193,22 @@
           const json = JSON.parse(reader.result);
           const formatted = JSON.stringify(json, null, 2);
           jsonContent.textContent = formatted;
-          currentFile = new Blob([formatted], { type: 'application/json' });
-          currentFileName = file.name;
-          localStorage.setItem('jsonContent', formatted);
-          downloadBtn.style.display = 'block';
-          uploadServerBtn.style.display = 'block';
+
+          const selectedTags = Array.from(document.querySelectorAll('.tag-check:checked')).map(el => el.value);
+          const uploads = JSON.parse(localStorage.getItem('uploads') || '[]');
+
+          const upload = {
+            name: file.name,
+            content: formatted,
+            tags: selectedTags,
+            date: new Date().toISOString()
+          };
+
+          uploads.push(upload);
+          localStorage.setItem('uploads', JSON.stringify(uploads));
+          localStorage.setItem('last', formatted);
+
+          renderUploads();
         } catch {
           alert('Invalid JSON file.');
         }
@@ -212,43 +216,45 @@
       reader.readAsText(file);
     }
 
-    downloadBtn.addEventListener('click', () => {
-      if (currentFile) {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(currentFile);
-        link.download = currentFileName || 'download.json';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    // Render all uploads
+    function renderUploads() {
+      uploadList.innerHTML = '';
+      const uploads = JSON.parse(localStorage.getItem('uploads') || '[]');
+      const activeFilters = Array.from(filterCheckboxes).filter(f => f.checked).map(f => f.value);
+
+      const filtered = uploads.filter(upload =>
+        activeFilters.length === 0 || upload.tags.some(tag => activeFilters.includes(tag))
+      ).reverse();
+
+      for (const upload of filtered) {
+        const div = document.createElement('div');
+        div.className = 'upload-item';
+        div.innerHTML = `
+          <strong>${upload.name}</strong><br/>
+          <small>${new Date(upload.date).toLocaleString()}</small><br/>
+          <strong>Tags:</strong> ${upload.tags.join(', ')}<br/>
+          <button class="btn" onclick="viewJSON(\`${upload.content.replace(/`/g, '\\`')}\`)">View</button>
+        `;
+        uploadList.appendChild(div);
       }
-    });
+    }
 
-    uploadServerBtn.addEventListener('click', async () => {
-      if (!currentFile) return;
+    // Display uploaded JSON
+    function viewJSON(content) {
+      jsonContent.textContent = content;
+    }
 
-      const tags = Array.from(tagInputs)
-        .filter(tag => tag.checked)
-        .map(tag => tag.value);
-
-      const formData = new FormData();
-      formData.append('jsonFile', currentFile, currentFileName || 'upload.json');
-      formData.append('tags', JSON.stringify(tags));
-
-      try {
-        const res = await fetch('/upload', {
-          method: 'POST',
-          body: formData
-        });
-
-        if (res.ok) {
-          alert('Uploaded to server!');
-        } else {
-          alert('Upload failed.');
-        }
-      } catch (err) {
-        alert('Error uploading to server.');
+    // On page load, restore last JSON + render uploads
+    window.onload = () => {
+      const last = localStorage.getItem('last');
+      if (last) {
+        jsonContent.textContent = last;
       }
-    });
+      renderUploads();
+    };
+
+    // Re-render on filter change
+    filterCheckboxes.forEach(cb => cb.addEventListener('change', renderUploads));
   </script>
 </body>
 </html>
