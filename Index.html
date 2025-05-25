@@ -116,10 +116,11 @@
   </div>
 
   <div class="tags" id="tag-container">
-    <!-- Checkboxes will be generated here -->
+    <!-- Checkboxes for upload tagging -->
   </div>
 
   <div class="filter">
+    <!-- Filter checkboxes for viewing -->
     <label><input type="checkbox" class="filter-tag" value="444">444</label>
     <label><input type="checkbox" class="filter-tag" value="XMOD">XMOD</label>
     <label><input type="checkbox" class="filter-tag" value="FISHY">FISHY</label>
@@ -145,17 +146,15 @@
     const uploadList = document.getElementById('upload-list');
     const filterCheckboxes = document.querySelectorAll('.filter-tag');
 
-    // Create checkboxes for tagging
+    // Create tag checkboxes for uploads
     tags.forEach(tag => {
       const label = document.createElement('label');
       label.innerHTML = `<input type="checkbox" value="${tag}" class="tag-check">${tag}`;
       tagContainer.appendChild(label);
     });
 
-    // Allow file selection via click
     dropArea.addEventListener('click', () => fileElem.click());
 
-    // Drag & drop support
     ['dragenter', 'dragover'].forEach(eventName => {
       dropArea.addEventListener(eventName, e => {
         e.preventDefault();
@@ -180,7 +179,6 @@
       handleFile(file);
     });
 
-    // Handle uploaded JSON file
     function handleFile(file) {
       if (!file.name.endsWith('.json')) {
         alert('Only JSON files are allowed.');
@@ -216,35 +214,36 @@
       reader.readAsText(file);
     }
 
-    // Render all uploads
     function renderUploads() {
       uploadList.innerHTML = '';
       const uploads = JSON.parse(localStorage.getItem('uploads') || '[]');
-      const activeFilters = Array.from(filterCheckboxes).filter(f => f.checked).map(f => f.value);
+      const activeFilters = Array.from(filterCheckboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value.toLowerCase());
 
-      const filtered = uploads.filter(upload =>
-        activeFilters.length === 0 || upload.tags.some(tag => activeFilters.includes(tag))
-      ).reverse();
+      const filtered = uploads.filter(upload => {
+        return activeFilters.length === 0 || upload.tags.some(tag => activeFilters.includes(tag.toLowerCase()));
+      }).reverse();
 
-      for (const upload of filtered) {
+      filtered.forEach(upload => {
         const div = document.createElement('div');
         div.className = 'upload-item';
         div.innerHTML = `
           <strong>${upload.name}</strong><br/>
           <small>${new Date(upload.date).toLocaleString()}</small><br/>
           <strong>Tags:</strong> ${upload.tags.join(', ')}<br/>
-          <button class="btn" onclick="viewJSON(\`${upload.content.replace(/`/g, '\\`')}\`)">View</button>
+          <button class="btn" onclick="viewJSON(\`${encodeURIComponent(upload.content)}\`)">View</button>
         `;
         uploadList.appendChild(div);
-      }
+      });
     }
 
-    // Display uploaded JSON
-    function viewJSON(content) {
+    function viewJSON(encoded) {
+      const content = decodeURIComponent(encoded);
       jsonContent.textContent = content;
+      localStorage.setItem('last', content);
     }
 
-    // On page load, restore last JSON + render uploads
     window.onload = () => {
       const last = localStorage.getItem('last');
       if (last) {
@@ -253,7 +252,6 @@
       renderUploads();
     };
 
-    // Re-render on filter change
     filterCheckboxes.forEach(cb => cb.addEventListener('change', renderUploads));
   </script>
 </body>
